@@ -5,14 +5,19 @@ import './AdminLogin.css'
 
 const LOGIN_ENDPOINT = 'https://notimitaapi.somee.com/Auth/Login'
 
-export default function AdminLogin({ onSuccess }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+interface AdminLoginProps {
+  onSuccess?: () => void
+}
+
+export default function AdminLogin({ onSuccess }: AdminLoginProps): React.JSX.Element {
+  const [username, setUsername] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  
   const { updateConfig } = useStreamConfig()
   const navigate = useNavigate()
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     setError('')
 
@@ -38,13 +43,18 @@ export default function AdminLogin({ onSuccess }) {
       }
 
       updateConfig({ authToken: token })
+
       if (onSuccess) {
         onSuccess()
       } else {
         navigate('/config-canal-2026')
       }
-    } catch (fetchError) {
-      setError(fetchError.message)
+    } catch (fetchError: unknown) {
+      if (fetchError instanceof Error) {
+        setError(fetchError.message)
+      } else {
+        setError('Ocurrió un error inesperado')
+      }
     }
   }
 
@@ -58,7 +68,7 @@ export default function AdminLogin({ onSuccess }) {
           id="admin-username"
           type="text"
           value={username}
-          onChange={(event) => setUsername(event.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setUsername(event.target.value)}
           placeholder="Usuario"
           required
         />
@@ -68,7 +78,7 @@ export default function AdminLogin({ onSuccess }) {
           id="admin-password"
           type="password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPassword(event.target.value)}
           placeholder="Contraseña"
           required
         />
