@@ -1,0 +1,29 @@
+.stream-loading,
+.stream-error {
+  width: 100%;
+  max-width: 980px;
+  text-align: center;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 22px;
+  font-size: 18px;
+  box-shadow: var(--shadow);
+}
+
+.stream-status {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 0 12px;
+  text-align: left;
+  color: #d1d5db;
+  font-size: 14px;
+  font-family: var(--sans);
+}
+
+.facebook-cta {
+  width: 100%;
+  max-width: 980px;
+  margin-top: 18px;
+}

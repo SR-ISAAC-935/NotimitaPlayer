@@ -1,0 +1,45 @@
+.facebook-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--facebook-blue);
+  color: var(--text);
+  text-decoration: none;
+  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 18px;
+  transition: background-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.facebook-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 30px rgba(59, 89, 152, 0.3);
+  opacity: 0.98;
+}
+
+.facebook-button:focus-visible {
+  outline: 3px solid var(--accent-border);
+  outline-offset: 3px;
+}
+
+.fb-icon {
+  width: 20px;
+  height: 20px;
+  fill: var(--text);
+}
+
+.fb-text {
+  line-height: 1;
+}
+
+@media (max-width: 480px) {
+  .facebook-button {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+}
