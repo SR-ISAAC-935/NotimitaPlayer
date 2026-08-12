@@ -15,6 +15,7 @@ interface ActiveStreamingDto {
   status: number
   playbackUrl: string
   startedAt: string
+  viewerCount: number
 }
 
 // Ajustá estos textos según los valores reales de tu enum StreamingStatus
@@ -25,17 +26,29 @@ const STATUS_LABELS: Record<number, string> = {
   3: 'Error',
 }
 
+function getOrCreateViewerId(): string {
+  const existing = sessionStorage.getItem('viewerId')
+  if (existing) return existing
+
+  const id = crypto.randomUUID()
+  sessionStorage.setItem('viewerId', id)
+  return id
+}
+
 export default function Home(): React.JSX.Element {
   const { config } = useStreamConfig()
   const [activeStream, setActiveStream] = useState<ActiveStreamingDto | null>(null)
   const [hasFetched, setHasFetched] = useState<boolean>(false)
+
+  const viewerIdRef = React.useRef<string>(getOrCreateViewerId())
 
   useEffect(() => {
     let isMounted = true
 
     async function fetchActiveStreaming() {
       try {
-        const response = await fetch(GET_ACTIVE_STREAMING_ENDPOINT)
+        const url = `${GET_ACTIVE_STREAMING_ENDPOINT}?viewerId=${viewerIdRef.current}`
+        const response = await fetch(url)
 
         if (!response.ok) {
           if (isMounted) setActiveStream(null)
@@ -67,6 +80,7 @@ export default function Home(): React.JSX.Element {
   const eventName = activeStream?.match || config?.match || 'Atlético Mictlán vs Deportivo Achuapa'
   const playbackUrl = activeStream?.playbackUrl || (!hasFetched ? config?.playbackUrl : '') || ''
   const streamStatus = activeStream ? (STATUS_LABELS[activeStream.status] ?? 'Pendiente') : 'Pendiente'
+  const viewerCount = activeStream?.viewerCount ?? 0
 
   return (
     <>
@@ -74,7 +88,9 @@ export default function Home(): React.JSX.Element {
       <section id="center">
         {playbackUrl ? (
           <>
-            <p className="stream-status">Estado: {streamStatus}</p>
+            <p className="stream-status">
+              Estado: {streamStatus} · {viewerCount} {viewerCount === 1 ? 'persona viendo' : 'personas viendo'}
+            </p>
             <VideoPlayer streamUrl={playbackUrl} />
           </>
         ) : (
