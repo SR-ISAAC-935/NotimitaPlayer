@@ -90,7 +90,7 @@ export default function StreamConfigForm(): React.JSX.Element {
     }
 
     // Generamos la playbackUrl automáticamente igual que en tu backend
-    const generatedPlaybackUrl = `http://128.140.101.162:8080/hls/${streamKey}.m3u8`
+    const generatedPlaybackUrl = `https://retransmisionmatches.duckdns.org/hls/${streamKey}.m3u8`
 
     updateConfig({
       match,
