@@ -77,14 +77,14 @@ export default function Home(): React.JSX.Element {
   // El estado del servidor manda; el context local solo sirve como fallback
   // mientras llega la primera respuesta del fetch (evita el parpadeo inicial
   // para quien acaba de configurar el stream en este mismo navegador).
-  const eventName = activeStream?.match || config?.match || 'Atlético Mictlán vs Deportivo Achuapa'
+  const eventName = activeStream?.match || config?.match || 'El conejo aguarda su proximo rival'
   const playbackUrl = activeStream?.playbackUrl || (!hasFetched ? config?.playbackUrl : '') || ''
   const streamStatus = activeStream ? (STATUS_LABELS[activeStream.status] ?? 'Pendiente') : 'Pendiente'
   const viewerCount = activeStream?.viewerCount ?? 0
 
   return (
     <>
-      <Header channelLogo={logomita} eventName={eventName} matchDateTime="02/08/2026 hora: 11:00 am" />
+      <Header channelLogo={logomita} eventName={eventName} matchDateTime={Date.now().toString()} />
       <section id="center">
         {playbackUrl ? (
           <>
