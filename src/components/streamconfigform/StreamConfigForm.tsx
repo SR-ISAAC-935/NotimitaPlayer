@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useStreamConfig } from '../../context/StreamConfigContext'
 import './StreamConfigForm.css'
 
-// 1. Actualizamos la estructura para incluir el authToken
+// 1. Actualizamos la estructura para incluir fbRestreamingKey y streamKey
 export interface StreamConfig {
   match?: string
   playbackUrl?: string
   streamStatus?: string | null
-  authToken?: string // <-- Añadido para poder leer el token
+  authToken?: string 
+  streamKey?: string
+  fbRestreamingKey?: string
 }
 
 interface StreamConfigContextType {
@@ -22,18 +24,16 @@ export default function StreamConfigForm(): React.JSX.Element {
   const { config, updateConfig } = useStreamConfig() as StreamConfigContextType
 
   const [match, setMatch] = useState<string>(config?.match || '')
-  const [playbackUrl, setPlaybackUrl] = useState<string>(config?.playbackUrl || '')
+  // Nuevo estado para la clave de retransmisión de Facebook
+  const [fbRestreamingKey, setFbRestreamingKey] = useState<string>(config?.fbRestreamingKey || '')
   
-  // Nuevos estados para manejar la Stream Key
-  const [streamKey, setStreamKey] = useState<string>('')
+  const [streamKey, setStreamKey] = useState<string>(config?.streamKey || '')
   const [isLoadingKey, setIsLoadingKey] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   
   const navigate = useNavigate()
 
-  // 2. useEffect para hacer el fetch automático al montar el componente
   useEffect(() => {
-    // Si no hay token en el contexto, podríamos redirigir al login
     if (!config.authToken) {
       setError('No estás autenticado. Por favor, inicia sesión.')
       return
@@ -45,7 +45,6 @@ export default function StreamConfigForm(): React.JSX.Element {
         const response = await fetch(STREAM_KEY_ENDPOINT, {
           method: 'GET',
           headers: {
-            // 3. Enviamos el token de autorización
             'Authorization': `Bearer ${config.authToken}`,
             'Content-Type': 'application/json'
           }
@@ -55,10 +54,9 @@ export default function StreamConfigForm(): React.JSX.Element {
           throw new Error(`HTTP Error ${response.status}: No se pudo obtener la clave.`)
         }
 
-        // Suponiendo que la API devuelve la clave como texto plano.
-        // Si devuelve JSON, cambia esto a await response.json() y extrae la propiedad.
         const keyData = await response.text()
-        setStreamKey(keyData)
+        // Limpiamos la clave por si viene con comillas o espacios extra
+        setStreamKey(keyData.replace(/["']/g, "").trim())
 
       } catch (err) {
         if (err instanceof Error) {
@@ -71,21 +69,34 @@ export default function StreamConfigForm(): React.JSX.Element {
       }
     }
 
-    fetchStreamKey()
-  }, [config.authToken])
+    // Solo hacemos fetch si no tenemos ya la key guardada
+    if (!streamKey) {
+      fetchStreamKey()
+    }
+  }, [config.authToken, streamKey])
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault()
     setError('')
 
-    if (!playbackUrl.trim()) {
-      setError('Pega el enlace de reproducción (playbackUrl) que te devolvió la API.')
+    if (!streamKey) {
+      setError('Aún no se ha cargado la Stream Key. Por favor espera.')
       return
     }
 
+    if (!fbRestreamingKey.trim()) {
+      setError('La clave de retransmisión de Facebook es obligatoria.')
+      return
+    }
+
+    // Generamos la playbackUrl automáticamente igual que en tu backend
+    const generatedPlaybackUrl = `http://128.140.101.162:8080/hls/${streamKey}.m3u8`
+
     updateConfig({
       match,
-      playbackUrl: playbackUrl.trim(),
+      fbRestreamingKey: fbRestreamingKey.trim(),
+      streamKey,
+      playbackUrl: generatedPlaybackUrl, // Se guarda lista para usarse en el reproductor
       streamStatus: null,
     })
 
@@ -97,9 +108,8 @@ export default function StreamConfigForm(): React.JSX.Element {
       <form className="stream-config-form" onSubmit={handleSubmit} aria-label="Configuración de streaming">
         <h2>Configuración de transmisión</h2>
 
-        {/* Sección para mostrar la Stream Key */}
         <div className="stream-key-container">
-          <label>Tu Stream Key:</label>
+          <label>Tu Stream Key (Automática):</label>
           {isLoadingKey ? (
             <p className="loading-text">Cargando clave...</p>
           ) : (
@@ -113,21 +123,22 @@ export default function StreamConfigForm(): React.JSX.Element {
           type="text"
           value={match}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => setMatch(event.target.value)}
+          placeholder="Ej: Tucumán vs Chinitos"
           required
         />
 
-        <label htmlFor="playback-url">Enlace de reproducción (playbackUrl)</label>
+        <label htmlFor="fb-restreaming-key">Clave de Facebook (fbRestreamingKey)</label>
         <input
-          id="playback-url"
+          id="fb-restreaming-key"
           type="text"
-          placeholder="http://128.140.101.162:8080/hls/streamkey.m3u8"
-          value={playbackUrl}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPlaybackUrl(event.target.value)}
+          placeholder="FB-1719508349360601-1-Ab7..."
+          value={fbRestreamingKey}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setFbRestreamingKey(event.target.value)}
           required
         />
 
         {error && <p className="stream-config-error">{error}</p>}
-        <button type="submit" disabled={!config.authToken}>Guardar configuración</button>
+        <button type="submit" disabled={!config.authToken || isLoadingKey}>Guardar configuración</button>
       </form>
     </main>
   )
