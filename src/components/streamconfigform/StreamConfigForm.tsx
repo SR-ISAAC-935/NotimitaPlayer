@@ -1,32 +1,79 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStreamConfig } from '../../context/StreamConfigContext'
 import './StreamConfigForm.css'
 
-// 1. Estructura de los datos de transmisión
+// 1. Actualizamos la estructura para incluir el authToken
 export interface StreamConfig {
   match?: string
   playbackUrl?: string
   streamStatus?: string | null
+  authToken?: string // <-- Añadido para poder leer el token
 }
 
-// 2. Estructura del valor retornado por el hook useStreamConfig
 interface StreamConfigContextType {
   config: StreamConfig
-  updateConfig: (newConfig: StreamConfig) => void
+  updateConfig: (newConfig: Partial<StreamConfig>) => void
 }
 
+const STREAM_KEY_ENDPOINT = 'https://notimitaapi.somee.com/StreamApiKey/GetStreamKey'
+
 export default function StreamConfigForm(): React.JSX.Element {
-  // Tipamos la desestructuración del hook
   const { config, updateConfig } = useStreamConfig() as StreamConfigContextType
 
   const [match, setMatch] = useState<string>(config?.match || '')
   const [playbackUrl, setPlaybackUrl] = useState<string>(config?.playbackUrl || '')
+  
+  // Nuevos estados para manejar la Stream Key
+  const [streamKey, setStreamKey] = useState<string>('')
+  const [isLoadingKey, setIsLoadingKey] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   
   const navigate = useNavigate()
 
-  // Tipado explícito del evento submit del formulario
+  // 2. useEffect para hacer el fetch automático al montar el componente
+  useEffect(() => {
+    // Si no hay token en el contexto, podríamos redirigir al login
+    if (!config.authToken) {
+      setError('No estás autenticado. Por favor, inicia sesión.')
+      return
+    }
+
+    async function fetchStreamKey() {
+      setIsLoadingKey(true)
+      try {
+        const response = await fetch(STREAM_KEY_ENDPOINT, {
+          method: 'GET',
+          headers: {
+            // 3. Enviamos el token de autorización
+            'Authorization': `Bearer ${config.authToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP Error ${response.status}: No se pudo obtener la clave.`)
+        }
+
+        // Suponiendo que la API devuelve la clave como texto plano.
+        // Si devuelve JSON, cambia esto a await response.json() y extrae la propiedad.
+        const keyData = await response.text()
+        setStreamKey(keyData)
+
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message)
+        } else {
+          setError('Error inesperado al obtener la stream key')
+        }
+      } finally {
+        setIsLoadingKey(false)
+      }
+    }
+
+    fetchStreamKey()
+  }, [config.authToken])
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault()
     setError('')
@@ -50,6 +97,16 @@ export default function StreamConfigForm(): React.JSX.Element {
       <form className="stream-config-form" onSubmit={handleSubmit} aria-label="Configuración de streaming">
         <h2>Configuración de transmisión</h2>
 
+        {/* Sección para mostrar la Stream Key */}
+        <div className="stream-key-container">
+          <label>Tu Stream Key:</label>
+          {isLoadingKey ? (
+            <p className="loading-text">Cargando clave...</p>
+          ) : (
+            <code className="stream-key-display">{streamKey || 'No disponible'}</code>
+          )}
+        </div>
+
         <label htmlFor="match">Partido</label>
         <input
           id="match"
@@ -70,7 +127,7 @@ export default function StreamConfigForm(): React.JSX.Element {
         />
 
         {error && <p className="stream-config-error">{error}</p>}
-        <button type="submit">Guardar configuración</button>
+        <button type="submit" disabled={!config.authToken}>Guardar configuración</button>
       </form>
     </main>
   )
