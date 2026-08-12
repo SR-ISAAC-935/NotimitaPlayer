@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import Header from '../Header'
 import VideoPlayer from '../VideoPlayer'
 import FacebookButton from '../FacebookButton/FacebookButton'
@@ -40,7 +40,11 @@ export default function Home(): React.JSX.Element {
   const [activeStream, setActiveStream] = useState<ActiveStreamingDto | null>(null)
   const [hasFetched, setHasFetched] = useState<boolean>(false)
 
-  const viewerIdRef = React.useRef<string>(getOrCreateViewerId())
+  // Inicializa el ref de forma lazy para evitar leer/escribir sessionStorage en cada render
+  const viewerIdRef = useRef<string | null>(null)
+  if (viewerIdRef.current === null) {
+    viewerIdRef.current = getOrCreateViewerId()
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -74,6 +78,14 @@ export default function Home(): React.JSX.Element {
     }
   }, [])
 
+  // Congela el cálculo de la fecha/timestamp para evitar re-renders innecesarios y re-evaluaciones al vuelo
+  const matchDateTime = useMemo(() => {
+    if (activeStream?.startedAt) {
+      return new Date(activeStream.startedAt).getTime().toString()
+    }
+    return Date.now().toString()
+  }, [activeStream?.startedAt])
+
   // El estado del servidor manda; el context local solo sirve como fallback
   // mientras llega la primera respuesta del fetch (evita el parpadeo inicial
   // para quien acaba de configurar el stream en este mismo navegador).
@@ -84,7 +96,7 @@ export default function Home(): React.JSX.Element {
 
   return (
     <>
-      <Header channelLogo={logomita} eventName={eventName} matchDateTime={Date.now().toString()} />
+      <Header channelLogo={logomita} eventName={eventName} matchDateTime={matchDateTime} />
       <section id="center">
         {playbackUrl ? (
           <>
