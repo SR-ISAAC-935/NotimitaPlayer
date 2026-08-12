@@ -8,7 +8,7 @@ export interface StreamConfig {
   match?: string
   playbackUrl?: string
   streamStatus?: string | null
-  authToken?: string 
+  authToken?: string
   streamKey?: string
   fbRestreamingKey?: string
 }
@@ -19,18 +19,20 @@ interface StreamConfigContextType {
 }
 
 const STREAM_KEY_ENDPOINT = 'https://notimitaapi.somee.com/StreamApiKey/GetStreamKey'
+const CREATE_STREAMING_ENDPOINT = 'https://notimitaapi.somee.com/StreamApiKey/CreateStreaming'
 
 export default function StreamConfigForm(): React.JSX.Element {
   const { config, updateConfig } = useStreamConfig() as StreamConfigContextType
 
   const [match, setMatch] = useState<string>(config?.match || '')
-  // Nuevo estado para la clave de retransmisión de Facebook
+  // Estado para la clave de retransmisión de Facebook
   const [fbRestreamingKey, setFbRestreamingKey] = useState<string>(config?.fbRestreamingKey || '')
-  
+
   const [streamKey, setStreamKey] = useState<string>(config?.streamKey || '')
   const [isLoadingKey, setIsLoadingKey] = useState<boolean>(false)
+  const [isStarting, setIsStarting] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
-  
+
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function StreamConfigForm(): React.JSX.Element {
     }
   }, [config.authToken, streamKey])
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     setError('')
 
@@ -92,15 +94,46 @@ export default function StreamConfigForm(): React.JSX.Element {
     // Generamos la playbackUrl automáticamente igual que en tu backend
     const generatedPlaybackUrl = `https://retransmisionmatches.duckdns.org/hls/${streamKey}.m3u8`
 
-    updateConfig({
-      match,
-      fbRestreamingKey: fbRestreamingKey.trim(),
-      streamKey,
-      playbackUrl: generatedPlaybackUrl, // Se guarda lista para usarse en el reproductor
-      streamStatus: null,
-    })
+    setIsStarting(true)
+    try {
+      // Avisamos al backend para que arranque el ffmpeg real hacia Facebook
+      const response = await fetch(CREATE_STREAMING_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.authToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          streamKey,
+          fbRestreamingKey: fbRestreamingKey.trim(),
+          match
+        })
+      })
 
-    navigate('/')
+      if (!response.ok) {
+        const errorBody = await response.text()
+        throw new Error(`No se pudo iniciar la transmisión (${response.status}): ${errorBody}`)
+      }
+
+      updateConfig({
+        match,
+        fbRestreamingKey: fbRestreamingKey.trim(),
+        streamKey,
+        playbackUrl: generatedPlaybackUrl, // Se guarda lista para usarse en el reproductor
+        streamStatus: null,
+      })
+
+      navigate('/')
+
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Error inesperado al iniciar la transmisión')
+      }
+    } finally {
+      setIsStarting(false)
+    }
   }
 
   return (
@@ -138,7 +171,9 @@ export default function StreamConfigForm(): React.JSX.Element {
         />
 
         {error && <p className="stream-config-error">{error}</p>}
-        <button type="submit" disabled={!config.authToken || isLoadingKey}>Guardar configuración</button>
+        <button type="submit" disabled={!config.authToken || isLoadingKey || isStarting}>
+          {isStarting ? 'Iniciando transmisión...' : 'Guardar configuración'}
+        </button>
       </form>
     </main>
   )
